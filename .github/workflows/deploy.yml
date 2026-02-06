@@ -1,0 +1,26 @@
+name: Deploy to Caliban
+
+on:
+  push:
+    branches: [dev, main]
+jobs:
+  deploy-dev:
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/dev'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and deploy
+        run: |
+          docker build -t hello-static-dev .
+          docker stop hello-static-dev 2>/dev/null || true
+          docker rm hello-static-dev 2>/dev/null || true
+          docker run -d \
+            --name hello-static-dev \
+            --label "traefik.enable=true" \
+            --label "traefik.http.routers.hello-static-dev.rule=Host(\`dev.hello-static.raspivan.com.es\`)" \
+            --label "traefik.http.routers.hello-static-dev.tls=true" \
+            --label "traefik.http.routers.hello-static-dev.tls.certresolver=letsencrypt" \
+            --label "traefik.http.services.hello-static-dev.loadbalancer.server.port=80" \
+            --network traefik-public \
+            --restart unless-stopped \
+            hello-static-dev
